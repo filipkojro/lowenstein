@@ -79,7 +79,7 @@ void generateDistanceMap(float* distanceMap, float* wallsTab, float* addWallInfo
 
         float b = sourceY - (a * sourceX);
 
-        distanceMap[sx] = INFINITY;
+        distanceMap[sx] = 600;//WARNING temporary const
 
         for (int currentWall = 0; currentWall < wallCount; currentWall++) {
             if (a != addWallInfo[currentWall * 2]) {
@@ -97,10 +97,28 @@ void generateDistanceMap(float* distanceMap, float* wallsTab, float* addWallInfo
                 //higher y
                 float hy = wallsTab[currentWall * 4 + 1] > wallsTab[currentWall * 4 + 3] ? wallsTab[currentWall * 4 + 1] : wallsTab[currentWall * 4 + 3];
                 float ly = wallsTab[currentWall * 4 + 1] < wallsTab[currentWall * 4 + 3] ? wallsTab[currentWall * 4 + 1] : wallsTab[currentWall * 4 + 3];
-                if (collisionY < ly || hy < collisionY)distanceMap[sx] = 0;
-
-                
+                /*
+                if (collisionY < ly || hy < collisionY) {
+                    distanceMap[sx] = 0;
+                    std::cout << collisionY << "\n";
+                }*/
             }
+        }
+    }
+}
+
+int overFlowInt(float num, int min, int max) {
+    if (num > max)return max;
+    if (num < min)return min;
+    return int(num);
+}
+
+void imageFromDistacneMap(sf::Image* buffer, float* distanceMap, int scale, sf::Color color) {
+    for (int x = 0; x < screenWidth; x++) {
+        for (int y = 0; y < overFlowInt(distanceMap[x] * scale / 2, 0, screenHeight / 2) - 1; y++) {
+            //buffer->setPixel(1, 1, color);
+            buffer->setPixel(x, overFlowInt((screenHeight / 2) + y, 0, screenHeight), color);
+            buffer->setPixel(x, overFlowInt((screenHeight / 2) - y, 0, screenHeight), color);
         }
     }
 }
@@ -121,7 +139,7 @@ int main(){
 
     constexpr int wallCount = 1;
     float wallsTab[wallCount * 4] = {
-        0, 0, 10, 0
+        0, 0, 10, 5
     };
 
     //two dimensional array [a, b]
@@ -137,7 +155,6 @@ int main(){
         std::cout << distanceMap[i] << "\n";
     }
 
-
     while (window.isOpen()){
         sf::Event event;
         while (window.pollEvent(event)){
@@ -146,21 +163,24 @@ int main(){
         }
 
         clearBuffer(&buffer);
-        playerRotation = 96;
-        /*
+        //playerRotation = 96;
+        
         playerRotation++;
-        if (playerRotation == 360)playerRotation = 0;*/
-        std::cout << playerRotation;
+        if (playerRotation == 360)playerRotation = 0;
+        //std::cout << playerRotation;
+        
         
         generateDistanceMap(distanceMap, wallsTab, addWallInfo, wallCount, playerPosX, playerPosY, playerRotation);
         
+        imageFromDistacneMap(&buffer, distanceMap, 1, sf::Color::White);
+        /*
         for (int i = 0; i < screenWidth; i++) {
-            if (i == 0)std::cout << " " << distanceMap[i] << "\n";
+            //if (i == 0)std::cout << " " << distanceMap[i] << "\n";
             if(distanceMap[i] > 640)drawLine(i, 0, i, 0, sf::Color::White, &buffer);
             else drawLine(i, 0, i, distanceMap[i] * 20, sf::Color::White, &buffer);
             
         }
-        
+        */
         //drawLine(50, 50, sf::Mouse::getPosition(window).x, sf::Mouse::getPosition(window).y, sf::Color::White, &buffer);
         //std::cout << sf::Mouse::getPosition(window).x << " " << sf::Mouse::getPosition(window).y << "\n";
 
