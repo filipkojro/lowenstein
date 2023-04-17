@@ -113,9 +113,11 @@ int overFlowInt(float num, int min, int max) {
     return int(num);
 }
 
+
+//chyba jest zle :(
 void imageFromDistacneMap(sf::Image* buffer, float* distanceMap, int scale, sf::Color color) {
     for (int x = 0; x < screenWidth; x++) {
-        for (int y = 0; y < overFlowInt(distanceMap[x] * scale / 2, 0, screenHeight / 2) - 1; y++) {
+        for (int y = 0; y < overFlowInt(distanceMap[x] * scale / 2, 0, screenHeight / 2); y++) {
             //buffer->setPixel(1, 1, color);
             buffer->setPixel(x, overFlowInt((screenHeight / 2) + y, 0, screenHeight), color);
             buffer->setPixel(x, overFlowInt((screenHeight / 2) - y, 0, screenHeight), color);
