@@ -4,11 +4,18 @@
 #include <SFML/Graphics.hpp>
 
 #define PI 3.14159265358979323846
-
+#define floatRounfingPrecision 10000
 
 const int screenWidth = 640;
 const int screenHeight = 480;
 const int FOV = 80;
+
+float rounding(float x) {
+    x *= floatRounfingPrecision;
+    x = round(x);
+    x /= floatRounfingPrecision;
+    return x;
+}
 
 void clearBuffer(sf::Image* img) {
     for (int x = 0; x < screenWidth; x++) {
@@ -79,31 +86,47 @@ void generateDistanceMap(float* distanceMap, float* wallsTab, float* addWallInfo
 
         float b = sourceY - (a * sourceX);
 
-        distanceMap[sx] = 600;//WARNING temporary const
+        distanceMap[sx] = INFINITY;//WARNING temporary const
 
         for (int currentWall = 0; currentWall < wallCount; currentWall++) {
             if (a != addWallInfo[currentWall * 2]) {
                 float collisionX = (addWallInfo[currentWall * 2 + 1] - b) / (a - addWallInfo[currentWall * 2]);
                 float collisionY = a * collisionX + b;
 
-                float distance = sqrt(pow(sourceX - collisionX, 2) + pow(sourceY - collisionY, 2));
-                if (distance < distanceMap[sx])distanceMap[sx] = distance;
-
                 //higher x
                 float hx = wallsTab[currentWall * 4] > wallsTab[currentWall * 4 + 2] ? wallsTab[currentWall * 4] : wallsTab[currentWall * 4 + 2];
                 float lx = wallsTab[currentWall * 4] < wallsTab[currentWall * 4 + 2] ? wallsTab[currentWall * 4] : wallsTab[currentWall * 4 + 2];
-                if (collisionX < lx || hx < collisionX)distanceMap[sx] = 0;
+                if (rounding(collisionX) < rounding(lx) || rounding(hx) < rounding(collisionX)){
+                        //distanceMap[sx] = INFINITY;
+                    continue;
+                }
 
                 //higher y
                 float hy = wallsTab[currentWall * 4 + 1] > wallsTab[currentWall * 4 + 3] ? wallsTab[currentWall * 4 + 1] : wallsTab[currentWall * 4 + 3];
                 float ly = wallsTab[currentWall * 4 + 1] < wallsTab[currentWall * 4 + 3] ? wallsTab[currentWall * 4 + 1] : wallsTab[currentWall * 4 + 3];
-                /*
-                if (collisionY < ly || hy < collisionY) {
-                    distanceMap[sx] = 0;
-                    std::cout << collisionY << "\n";
-                }*/
+                if (rounding(collisionY) < rounding(ly) || rounding(hy) < rounding(collisionY)) {
+                    //distanceMap[sx] = INFINITY;
+                    //std::cout << collisionY << "\n";
+                    continue;
+                }
+
+                float distance = sqrt(pow(sourceX - collisionX, 2) + pow(sourceY - collisionY, 2));
+                if (distance < distanceMap[sx])distanceMap[sx] = distance;
             }
         }
+    }
+}
+
+void generateAddWallInfo(int wallCount, float* wallsTab, float* addWallInfo) {
+
+    int ac = 0;
+    int wc = 0;
+    for (int i = 0; i < wallCount; i++) {
+        addWallInfo[ac] = (wallsTab[wc + 1] - wallsTab[wc + 3]) / (wallsTab[wc] - wallsTab[wc + 2]);
+        addWallInfo[ac + 1] = wallsTab[wc + 1] - (addWallInfo[ac] * wallsTab[wc]);
+
+        ac += 2;
+        wc += 4;
     }
 }
 
@@ -139,15 +162,18 @@ int main(){
     bufferSprite.setTexture(bufferTexture);
 
 
-    constexpr int wallCount = 1;
+    constexpr int wallCount = 2;
     float wallsTab[wallCount * 4] = {
-        0, 0, 10, 5
+        -10, 30, 10, 50,
+        0, 0, -10, 30
     };
 
     //two dimensional array [a, b]
-    float addWallInfo[wallCount * 2] = {0, 0};
+    float addWallInfo[wallCount * 2];
 
-    float playerPosX = 5, playerPosY = -5, playerRotation = 1;
+    generateAddWallInfo(wallCount, wallsTab, addWallInfo);
+
+    float playerPosX = 5, playerPosY = -30, playerRotation = 1;
 
     float distanceMap[screenWidth];
 
@@ -167,14 +193,36 @@ int main(){
         clearBuffer(&buffer);
         //playerRotation = 96;
         
+        //playerPosY--;
+
         playerRotation++;
         if (playerRotation == 360)playerRotation = 0;
         //std::cout << playerRotation;
         
+        double rotationRad = playerRotation * 180 / PI;
+
+        playerPosX = cos(rotationRad) * -100;
+        
+        playerPosY = sin(rotationRad) * -100;
+        std::cout << playerPosX << " " << playerPosY << "\n";
+        system("pause");
+
         
         generateDistanceMap(distanceMap, wallsTab, addWallInfo, wallCount, playerPosX, playerPosY, playerRotation);
         
-        imageFromDistacneMap(&buffer, distanceMap, 1, sf::Color::White);
+        //imageFromDistacneMap(&buffer, distanceMap, 1, sf::Color::White);
+        
+        for (int i = 0; i < screenWidth; i++) {
+            //if (i == 0)std::cout << " " << distanceMap[i] << "\n";
+            if (distanceMap[i] < screenHeight / 2) {
+                drawLine(i, screenHeight / 2, i, (distanceMap[i]), sf::Color::White, &buffer);
+                drawLine(i, screenHeight / 2, i, (screenHeight / 2) + (screenHeight / 2) - (distanceMap[i]), sf::Color::White, &buffer);
+            }
+            else {
+                drawLine(i, screenHeight / 2, i, screenHeight / 2, sf::Color::White, &buffer);
+            }
+        }
+        
         /*
         for (int i = 0; i < screenWidth; i++) {
             //if (i == 0)std::cout << " " << distanceMap[i] << "\n";
