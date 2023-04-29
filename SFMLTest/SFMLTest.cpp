@@ -1,6 +1,8 @@
 #include <iostream>
 #include <cmath>
 #include <cstdio>
+#include <fstream>
+#include <thread>
 #include <SFML/Graphics.hpp>
 
 #define PI 3.14159265358979323846
@@ -75,20 +77,25 @@ void drawLine(int x1, int y1, int x2, int y2, sf::Color color, sf::Image* img) {
     }
 }
 
-void generateDistanceMap(float* distanceMap, float* wallsTab, float* addWallInfo, int wallCount, float sourceX, float sourceY, float sourceRotation) {
-
-    for (int sx = 0; sx < screenWidth; sx++) {
+void generateDistanceMap(int thID, int thSize, float* distanceMap, float* wallsTab, float* addWallInfo, int wallCount, float sourceX, float sourceY, float sourceRotation) {
+    for (int sx = thID * thSize; sx < thID * thSize + thSize; sx++) {
 
         float beta = sourceRotation + (FOV / 2) - float((float(sx * FOV)) / screenWidth);//to psulo dokladnosc :(
         float betaR;
 
+        /*
         if (beta == 90 || beta == 270) {
             betaR = (beta - 1) * PI / 180;
         }
         else {
             betaR = beta * PI / 180;
         }
+        */
+        betaR = beta * PI / 180;
+
         float a = tan(betaR);
+        //std::cout << a << "\n";
+
         //float a = sin(beta) / cos(beta);//possible optimalization (internet)
         float b = sourceY - (a * sourceX);
 
@@ -192,18 +199,22 @@ void makeMap(sf::Image* mapBuffer, float* wallsTab, int wallCount, float playerX
     }
 }
 
-//chyba jest zle :(
 void imageFromDistacneMap(sf::Image* buffer, float* distanceMap, int scale, sf::Color color) {
-    for (int x = 0; x < screenWidth; x++) {
-        for (int y = 0; y < overFlowInt(distanceMap[x] * scale / 2, 0, screenHeight / 2); y++) {
-            //buffer->setPixel(1, 1, color);
-            buffer->setPixel(x, overFlowInt((screenHeight / 2) + y, 0, screenHeight), color);
-            buffer->setPixel(x, overFlowInt((screenHeight / 2) - y, 0, screenHeight), color);
+    for (int i = 0; i < screenWidth; i++) {
+        sf::Color col = sf::Color(color.r, color.g, color.b, mapping(distanceMap[i], 0, screenHeight / 3, 255, 0));
+        if (distanceMap[i] < screenHeight / 2) {
+            drawLine(i, screenHeight / 2, i, (distanceMap[i]), col, buffer);
+            drawLine(i, screenHeight / 2, i, (screenHeight / 2) + (screenHeight / 2) - (distanceMap[i]), col, buffer);
         }
+        else {
+            drawLine(i, screenHeight / 2, i, screenHeight / 2, col, buffer);
+        }
+        //std::cout << distanceMap[i] << "\n";
     }
 }
 
 int main(){
+
     sf::RenderWindow window(sf::VideoMode(screenWidth, screenHeight), "Lowenstein Game");
     sf::RenderWindow mapWindow(sf::VideoMode(screenWidth, screenHeight), "Lowenstein Map");
 
@@ -225,15 +236,25 @@ int main(){
     mapBufferSprite.setTexture(mapBufferTexture);
 
 
-    constexpr int wallCount = 3;
-    float wallsTab[wallCount * 4] = {
-        -10, 10, 10, 10,
-        10, 10, 10, -10,
-        10, -10, -10, -10
-    };
+    //pulling map from file
+    //wall count
+    //x1.1 y1.1 x1.2 y1.2
+    //x2.1 y2.1 x2.2 y2.2 ...
+    
+    std::ifstream in("rndm.map");
+
+    int wallCount;
+    in >> wallCount;
+
+    float* wallsTab = new float[wallCount * 4];
+    for (int i = 0; i < wallCount * 4; i++) {
+        in >> wallsTab[i];
+    }
+
+    in.close();
 
     //two dimensional array [a, b]
-    float addWallInfo[wallCount * 2];
+    float* addWallInfo = new float[wallCount * 2];
 
     generateAddWallInfo(wallCount, wallsTab, addWallInfo);
 
@@ -246,7 +267,7 @@ int main(){
 
     float distanceMap[screenWidth];
 
-    generateDistanceMap(distanceMap, wallsTab, addWallInfo, wallCount, playerPosX, playerPosY, playerRotation);
+    generateDistanceMap(0, screenWidth, distanceMap, wallsTab, addWallInfo, wallCount, playerPosX, playerPosY, playerRotation);
 
 
     while (window.isOpen() && mapWindow.isOpen()){
@@ -259,9 +280,11 @@ int main(){
             if (event.type == sf::Event::Closed)
                 mapWindow.close();
         }
+        
         clearBuffer(&buffer);
         clearBuffer(&mapBuffer);
         
+
         //controls
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Q))playerRotation--;
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::E))playerRotation++;
@@ -276,42 +299,16 @@ int main(){
         playerPosX = cos(playerRotation * PI / 180) * -60;
         playerPosY = sin(playerRotation * PI / 180) * -60;
 
-        //std::cout << playerRotation << " : " << tan(playerRotation * PI / 180) << "\n";
 
-        
-        generateDistanceMap(distanceMap, wallsTab, addWallInfo, wallCount, playerPosX, playerPosY, playerRotation);
-        
-        //imageFromDistacneMap(&buffer, distanceMap, 1, sf::Color::White);
-
-        
-        
-        for (int i = 0; i < screenWidth; i++) {
-            //if (i == 0)std::cout << " " << distanceMap[i] << "\n";
-            sf::Color col = sf::Color(255, 255, 255, mapping(distanceMap[i], 0, screenHeight / 3, 255, 0));
-            if (distanceMap[i] < screenHeight / 2) {
-                drawLine(i, screenHeight / 2, i, (distanceMap[i]), col, &buffer);
-                drawLine(i, screenHeight / 2, i, (screenHeight / 2) + (screenHeight / 2) - (distanceMap[i]), col, &buffer);
-            }
-            else {
-                drawLine(i, screenHeight / 2, i, screenHeight / 2, col, &buffer);
-            }
-            //std::cout << distanceMap[i] << "\n";
-        }
-        /*
-        for (int i = 0; i < screenWidth; i++) {
-            //if (i == 0)std::cout << " " << distanceMap[i] << "\n";
-            if(distanceMap[i] > 640)drawLine(i, 0, i, 0, sf::Color::White, &buffer);
-            else drawLine(i, 0, i, distanceMap[i] * 20, sf::Color::White, &buffer);
-            
-        }
-        */
-        //drawLine(50, 50, sf::Mouse::getPosition(window).x, sf::Mouse::getPosition(window).y, sf::Color::White, &buffer);
-        //std::cout << sf::Mouse::getPosition(window).x << " " << sf::Mouse::getPosition(window).y << "\n";
+        generateDistanceMap(0, screenWidth, distanceMap, wallsTab, addWallInfo, wallCount, playerPosX, playerPosY, playerRotation);
+        imageFromDistacneMap(&buffer, distanceMap, 1, sf::Color::White);
 
         
         makeMap(&mapBuffer, wallsTab, wallCount, playerPosX, playerPosY, playerRotation);
 
 
+
+        //display part
         window.clear();
         bufferTexture.update(buffer);
         window.draw(bufferSprite);
