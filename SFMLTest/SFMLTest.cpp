@@ -17,6 +17,13 @@ float rounding(float x) {
     return x;
 }
 
+float mapping(float input, float inMin, float inMax, float outMin, float outMax) {
+    float difIn = inMax - inMin;
+    float difOut = outMax - outMin;
+
+    return input * difOut / difIn;
+}
+
 void clearBuffer(sf::Image* img) {
     for (int x = 0; x < screenWidth; x++) {
         for (int y = 0; y < screenHeight; y++) {
@@ -72,27 +79,52 @@ void generateDistanceMap(float* distanceMap, float* wallsTab, float* addWallInfo
 
     for (int sx = 0; sx < screenWidth; sx++) {
 
-        float beta = sourceRotation + (FOV / 2) - ((sx * FOV) / screenWidth);
+        float beta = sourceRotation + (FOV / 2) - float((float(sx * FOV)) / screenWidth);//to psulo dokladnosc :(
+        float betaR;
 
-        //beta = beta * PI / 180;
-        
         if (beta == 90 || beta == 270) {
-            beta = (beta - 1) * PI / 180;
+            betaR = (beta - 1) * PI / 180;
         }
         else {
-            beta = beta * PI / 180;
+            betaR = beta * PI / 180;
         }
-        float a = tan(beta);
-
+        float a = tan(betaR);
+        //float a = sin(beta) / cos(beta);//possible optimalization (internet)
         float b = sourceY - (a * sourceX);
 
         distanceMap[sx] = INFINITY;//WARNING temporary const
 
         for (int currentWall = 0; currentWall < wallCount; currentWall++) {
             if (a != addWallInfo[currentWall * 2]) {
-                float collisionX = (addWallInfo[currentWall * 2 + 1] - b) / (a - addWallInfo[currentWall * 2]);
+                float wallA = addWallInfo[currentWall * 2];
+                float wallB = addWallInfo[currentWall * 2 + 1];
+
+                float collisionX = (wallB - b) / (a - wallA);
                 float collisionY = a * collisionX + b;
 
+                if (wallA == INFINITY || wallA == -INFINITY) {
+                    collisionX = wallsTab[currentWall * 4];
+                    collisionY = a * collisionX + b;
+                }
+
+                
+                
+                //float TcollisionX = cos(beta) * distance;
+                //float TcollisionY = sin(beta) * distance;
+
+                //std::cout << "N " << collisionX << " : " << collisionY << "\n";
+                //std::cout << "T " << TcollisionX << " : " << TcollisionY << "\n\n";
+
+                //if (collisionX * TcollisionX  < 0)continue;
+                //if (collisionY * TcollisionY < 0)continue;
+
+                //std::cout << collisionX << " : " << collisionY << "\n";
+
+                if (0 <= beta && beta < 90)if (collisionX < sourceX || collisionY < sourceY)continue;
+                if (90 <= beta && beta < 180)if (collisionX > sourceX || collisionY < sourceY)continue;
+                if (180 <= beta && beta < 270)if (collisionX > sourceX || collisionY > sourceY)continue;
+                if (270 <= beta && beta < 360)if (collisionX < sourceX || collisionY > sourceY)continue;
+                
                 //higher x
                 float hx = wallsTab[currentWall * 4] > wallsTab[currentWall * 4 + 2] ? wallsTab[currentWall * 4] : wallsTab[currentWall * 4 + 2];
                 float lx = wallsTab[currentWall * 4] < wallsTab[currentWall * 4 + 2] ? wallsTab[currentWall * 4] : wallsTab[currentWall * 4 + 2];
@@ -111,6 +143,7 @@ void generateDistanceMap(float* distanceMap, float* wallsTab, float* addWallInfo
                 }
 
                 float distance = sqrt(pow(sourceX - collisionX, 2) + pow(sourceY - collisionY, 2));
+
                 if (distance < distanceMap[sx])distanceMap[sx] = distance;
             }
         }
@@ -136,6 +169,28 @@ int overFlowInt(float num, int min, int max) {
     return int(num);
 }
 
+void makeMap(sf::Image* mapBuffer, float* wallsTab, int wallCount, float playerX, float playerY, float playerRotation) {
+    
+    //player vision cone
+    int lenght = sqrt(pow(screenWidth / 2, 2) + pow(screenHeight / 2, 2));
+
+    for (int i = 0; i < FOV; i++) {
+        double deg = (i + playerRotation - (FOV / 2)) * PI / 180;
+
+        int x = round(cos(deg) * lenght);
+        int y = round(sin(deg) * lenght);
+
+        //std::cout << x << " " << y << " " << playerX << " " << playerY << "\n";
+
+        drawLine(screenWidth / 2, screenHeight / 2, x + (screenWidth / 2), y + (screenHeight / 2), sf::Color(0,0,255, 100), mapBuffer);
+    }
+    
+    
+    //drawing walls
+    for (int i = 0; i < wallCount; i++) {
+        drawLine(wallsTab[(i * 4)] + (screenWidth / 2) - playerX, wallsTab[(i * 4) + 1] + (screenHeight / 2) - playerY, wallsTab[(i * 4) + 2] + (screenWidth / 2) - playerX, wallsTab[(i * 4) + 3] + (screenHeight / 2) - playerY, sf::Color::White, mapBuffer);
+    }
+}
 
 //chyba jest zle :(
 void imageFromDistacneMap(sf::Image* buffer, float* distanceMap, int scale, sf::Color color) {
@@ -149,23 +204,32 @@ void imageFromDistacneMap(sf::Image* buffer, float* distanceMap, int scale, sf::
 }
 
 int main(){
-    sf::RenderWindow window(sf::VideoMode(screenWidth, screenHeight), "Lowenstein");
+    sf::RenderWindow window(sf::VideoMode(screenWidth, screenHeight), "Lowenstein Game");
+    sf::RenderWindow mapWindow(sf::VideoMode(screenWidth, screenHeight), "Lowenstein Map");
 
     sf::Image buffer;
     buffer.create(screenWidth, screenHeight, sf::Color::Black);
+    sf::Image mapBuffer;
+    mapBuffer.create(screenWidth, screenHeight, sf::Color::Black);
 
     sf::Texture bufferTexture;
     bufferTexture.create(window.getSize().x, window.getSize().y);
     bufferTexture.update(buffer);
+    sf::Texture mapBufferTexture;
+    mapBufferTexture.create(mapWindow.getSize().x, mapWindow.getSize().y);
+    mapBufferTexture.update(mapBuffer);
 
     sf::Sprite bufferSprite;
     bufferSprite.setTexture(bufferTexture);
+    sf::Sprite mapBufferSprite;
+    mapBufferSprite.setTexture(mapBufferTexture);
 
 
-    constexpr int wallCount = 2;
+    constexpr int wallCount = 3;
     float wallsTab[wallCount * 4] = {
-        -10, 30, 10, 50,
-        0, 0, -10, 30
+        -10, 10, 10, 10,
+        10, 10, 10, -10,
+        10, -10, -10, -10
     };
 
     //two dimensional array [a, b]
@@ -173,56 +237,66 @@ int main(){
 
     generateAddWallInfo(wallCount, wallsTab, addWallInfo);
 
-    float playerPosX = 5, playerPosY = -30, playerRotation = 1;
+
+    for (int i = 0; i < wallCount * 2; i++) {
+        std::cout << addWallInfo[i] << "\n";
+    }
+
+    float playerPosX = -15, playerPosY = -30, playerRotation = 96;
 
     float distanceMap[screenWidth];
 
     generateDistanceMap(distanceMap, wallsTab, addWallInfo, wallCount, playerPosX, playerPosY, playerRotation);
 
-    for (int i = 0; i < screenWidth; i++) {
-        std::cout << distanceMap[i] << "\n";
-    }
 
-    while (window.isOpen()){
+    while (window.isOpen() && mapWindow.isOpen()){
         sf::Event event;
         while (window.pollEvent(event)){
             if (event.type == sf::Event::Closed)
                 window.close();
         }
-
+        while (mapWindow.pollEvent(event)) {
+            if (event.type == sf::Event::Closed)
+                mapWindow.close();
+        }
         clearBuffer(&buffer);
-        //playerRotation = 96;
+        clearBuffer(&mapBuffer);
         
-        //playerPosY--;
+        //controls
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Q))playerRotation--;
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::E))playerRotation++;
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))playerPosX--;
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::D))playerPosX++;
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::S))playerPosY++;//reversed
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::W))playerPosY--;
+        
+        if (playerRotation >= 360)playerRotation = 0;
+        else if (playerRotation < 0)playerRotation = 359;
 
-        playerRotation++;
-        if (playerRotation == 360)playerRotation = 0;
-        //std::cout << playerRotation;
-        
-        double rotationRad = playerRotation * 180 / PI;
+        playerPosX = cos(playerRotation * PI / 180) * -60;
+        playerPosY = sin(playerRotation * PI / 180) * -60;
 
-        playerPosX = cos(rotationRad) * -100;
-        
-        playerPosY = sin(rotationRad) * -100;
-        std::cout << playerPosX << " " << playerPosY << "\n";
-        system("pause");
+        //std::cout << playerRotation << " : " << tan(playerRotation * PI / 180) << "\n";
 
         
         generateDistanceMap(distanceMap, wallsTab, addWallInfo, wallCount, playerPosX, playerPosY, playerRotation);
         
         //imageFromDistacneMap(&buffer, distanceMap, 1, sf::Color::White);
+
+        
         
         for (int i = 0; i < screenWidth; i++) {
             //if (i == 0)std::cout << " " << distanceMap[i] << "\n";
+            sf::Color col = sf::Color(255, 255, 255, mapping(distanceMap[i], 0, screenHeight / 3, 255, 0));
             if (distanceMap[i] < screenHeight / 2) {
-                drawLine(i, screenHeight / 2, i, (distanceMap[i]), sf::Color::White, &buffer);
-                drawLine(i, screenHeight / 2, i, (screenHeight / 2) + (screenHeight / 2) - (distanceMap[i]), sf::Color::White, &buffer);
+                drawLine(i, screenHeight / 2, i, (distanceMap[i]), col, &buffer);
+                drawLine(i, screenHeight / 2, i, (screenHeight / 2) + (screenHeight / 2) - (distanceMap[i]), col, &buffer);
             }
             else {
-                drawLine(i, screenHeight / 2, i, screenHeight / 2, sf::Color::White, &buffer);
+                drawLine(i, screenHeight / 2, i, screenHeight / 2, col, &buffer);
             }
+            //std::cout << distanceMap[i] << "\n";
         }
-        
         /*
         for (int i = 0; i < screenWidth; i++) {
             //if (i == 0)std::cout << " " << distanceMap[i] << "\n";
@@ -235,15 +309,18 @@ int main(){
         //std::cout << sf::Mouse::getPosition(window).x << " " << sf::Mouse::getPosition(window).y << "\n";
 
         
-
-
-
+        makeMap(&mapBuffer, wallsTab, wallCount, playerPosX, playerPosY, playerRotation);
 
 
         window.clear();
         bufferTexture.update(buffer);
         window.draw(bufferSprite);
         window.display();
+
+        mapWindow.clear();
+        mapBufferTexture.update(mapBuffer);
+        mapWindow.draw(mapBufferSprite);
+        mapWindow.display();
     }
 
     return 0;
