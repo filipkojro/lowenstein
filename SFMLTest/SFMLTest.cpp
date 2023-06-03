@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <fstream>
 #include <thread>
+#include <chrono>
 #include <SFML/Graphics.hpp>
 
 #define PI 3.14159265358979323846
@@ -213,6 +214,23 @@ void imageFromDistacneMap(sf::Image* buffer, float* distanceMap, int scale, sf::
     }
 }
 
+void playerMovement(float* playerX, float* playerY, float* playerR, double lastT) {
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Q))(*playerR)--;
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::E))(*playerR)++;
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))(*playerX)--;
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::D))(*playerX)++;
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::S))(*playerY)++;//reversed
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::W))(*playerY)--;
+
+    if (*playerR >= 360)*playerR = 0;
+    else if (*playerR < 0)*playerR = 359;
+
+    *playerX = float(cos(*playerR * PI / 180) * -60);
+    *playerY = float(sin(*playerR * PI / 180) * -60);
+
+    std::cout << *playerX << "  " << *playerY << "\n";
+}
+
 int main(){
 
     sf::RenderWindow window(sf::VideoMode(screenWidth, screenHeight), "Lowenstein Game");
@@ -265,10 +283,15 @@ int main(){
 
     float playerPosX = -15, playerPosY = -30, playerRotation = 96;
 
+    auto lastTime = std::chrono::steady_clock::now();
+
     float distanceMap[screenWidth];
 
     generateDistanceMap(0, screenWidth, distanceMap, wallsTab, addWallInfo, wallCount, playerPosX, playerPosY, playerRotation);
 
+
+
+    //main game loop!!!
 
     while (window.isOpen() && mapWindow.isOpen()){
         sf::Event event;
@@ -286,18 +309,17 @@ int main(){
         
 
         //controls
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Q))playerRotation--;
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::E))playerRotation++;
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))playerPosX--;
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::D))playerPosX++;
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::S))playerPosY++;//reversed
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::W))playerPosY--;
-        
-        if (playerRotation >= 360)playerRotation = 0;
-        else if (playerRotation < 0)playerRotation = 359;
+        playerMovement(&playerPosX, &playerPosY, &playerRotation, 13);
 
-        playerPosX = cos(playerRotation * PI / 180) * -60;
-        playerPosY = sin(playerRotation * PI / 180) * -60;
+        std::chrono::duration<double> elps = std::chrono::steady_clock::now() - lastTime;
+        lastTime = std::chrono::steady_clock::now();
+
+        //std::cout << elps.count() << "\n";
+
+
+
+
+        
 
 
         generateDistanceMap(0, screenWidth, distanceMap, wallsTab, addWallInfo, wallCount, playerPosX, playerPosY, playerRotation);
