@@ -94,10 +94,8 @@ void generateDistanceMap(int thID, int thSize, float* distanceMap, float* wallsT
         */
         betaR = beta * PI / 180;
 
-        float a = tan(betaR);
-        //std::cout << a << "\n";
-
-        //float a = sin(beta) / cos(beta);//possible optimalization (internet)
+        //float a = tan(betaR);
+        float a = sin(betaR) / cos(betaR);//possible optimalization (internet)
         float b = sourceY - (a * sourceX);
 
         distanceMap[sx] = INFINITY;//WARNING temporary const
@@ -150,7 +148,9 @@ void generateDistanceMap(int thID, int thSize, float* distanceMap, float* wallsT
                     continue;
                 }
 
-                float distance = sqrt(pow(sourceX - collisionX, 2) + pow(sourceY - collisionY, 2));
+                //float distance = sqrt(pow(sourceX - collisionX, 2) + pow(sourceY - collisionY, 2));
+
+                float distance = pow(sourceX - collisionX, 2) + pow(sourceY - collisionY, 2);
 
                 if (distance < distanceMap[sx])distanceMap[sx] = distance;
             }
@@ -202,10 +202,11 @@ void makeMap(sf::Image* mapBuffer, float* wallsTab, int wallCount, float playerX
 
 void imageFromDistacneMap(sf::Image* buffer, float* distanceMap, int scale, sf::Color color) {
     for (int i = 0; i < screenWidth; i++) {
-        sf::Color col = sf::Color(color.r, color.g, color.b, mapping(distanceMap[i], 0, screenHeight / 3, 255, 0));
-        if (distanceMap[i] < screenHeight / 2) {
-            drawLine(i, screenHeight / 2, i, (distanceMap[i]), col, buffer);
-            drawLine(i, screenHeight / 2, i, (screenHeight / 2) + (screenHeight / 2) - (distanceMap[i]), col, buffer);
+        float distance = sqrt(distanceMap[i]);
+        sf::Color col = sf::Color(color.r, color.g, color.b, mapping(distance, 0, screenHeight / 3, 255, 0));
+        if (distance < screenHeight / 2) {
+            drawLine(i, screenHeight / 2, i, (distance), col, buffer);
+            drawLine(i, screenHeight / 2, i, (screenHeight / 2) + (screenHeight / 2) - (distance), col, buffer);
         }
         else {
             drawLine(i, screenHeight / 2, i, screenHeight / 2, col, buffer);
@@ -227,8 +228,6 @@ void playerMovement(float* playerX, float* playerY, float* playerR, double lastT
 
     *playerX = float(cos(*playerR * PI / 180) * -60);
     *playerY = float(sin(*playerR * PI / 180) * -60);
-
-    std::cout << *playerX << "  " << *playerY << "\n";
 }
 
 int main(){
@@ -259,7 +258,8 @@ int main(){
     //x1.1 y1.1 x1.2 y1.2
     //x2.1 y2.1 x2.2 y2.2 ...
     
-    std::ifstream in("rndm.map");
+    //std::ifstream in("rndm.map");
+    std::ifstream in("level0.map");
 
     int wallCount;
     in >> wallCount;
@@ -295,6 +295,8 @@ int main(){
 
     while (window.isOpen() && mapWindow.isOpen()){
         sf::Event event;
+
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape)) window.close();
         while (window.pollEvent(event)){
             if (event.type == sf::Event::Closed)
                 window.close();
@@ -314,16 +316,12 @@ int main(){
         std::chrono::duration<double> elps = std::chrono::steady_clock::now() - lastTime;
         lastTime = std::chrono::steady_clock::now();
 
-        //std::cout << elps.count() << "\n";
-
-
-
-
-        
-
+        std::cout << elps.count() << "\n";
 
         generateDistanceMap(0, screenWidth, distanceMap, wallsTab, addWallInfo, wallCount, playerPosX, playerPosY, playerRotation);
         imageFromDistacneMap(&buffer, distanceMap, 1, sf::Color::White);
+
+
 
         
         makeMap(&mapBuffer, wallsTab, wallCount, playerPosX, playerPosY, playerRotation);
