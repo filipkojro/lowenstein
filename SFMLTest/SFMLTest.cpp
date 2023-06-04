@@ -216,18 +216,26 @@ void imageFromDistacneMap(sf::Image* buffer, float* distanceMap, int scale, sf::
 }
 
 void playerMovement(float* playerX, float* playerY, float* playerR, double lastT) {
+    float speed = 0.5f;
+
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Q))(*playerR)--;
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::E))(*playerR)++;
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))(*playerX)--;
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::D))(*playerX)++;
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::S))(*playerY)++;//reversed
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::W))(*playerY)--;
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::W)) {
+        float rad = *playerR * PI / 180;
+        float a = sin(rad) / cos(rad);
+        float b = *playerY - (a * *playerX);
+
+
+    }
 
     if (*playerR >= 360)*playerR = 0;
     else if (*playerR < 0)*playerR = 359;
 
-    *playerX = float(cos(*playerR * PI / 180) * -60);
-    *playerY = float(sin(*playerR * PI / 180) * -60);
+    //*playerX = float(cos(*playerR * PI / 180) * -60);
+    //*playerY = float(sin(*playerR * PI / 180) * -60);
 }
 
 int main(){
