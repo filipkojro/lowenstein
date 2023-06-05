@@ -218,18 +218,18 @@ void imageFromDistacneMap(sf::Image* buffer, float* distanceMap, int scale, sf::
 void playerMovement(float* playerX, float* playerY, float* playerR, double lastT) {
     float speed = 0.5f;
 
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Q))(*playerR)--;
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::E))(*playerR)++;
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))(*playerX)--;
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::D))(*playerX)++;
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::S))(*playerY)++;//reversed
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::W)) {
-        float rad = *playerR * PI / 180;
-        float a = sin(rad) / cos(rad);
-        float b = *playerY - (a * *playerX);
+    //vector of next move
+    float vectorx = 0;
+    float vectory = 0;
+    //which direction will move
+    float moveR = 0;
 
-
-    }
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Q) && sf::Keyboard::isKeyPressed(sf::Keyboard::W))(*playerR)--;
+    //if (sf::Keyboard::isKeyPressed(sf::Keyboard::E))(*playerR)++;
+    //if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))(*playerX)--;
+    //if (sf::Keyboard::isKeyPressed(sf::Keyboard::D))(*playerX)++;
+    //if (sf::Keyboard::isKeyPressed(sf::Keyboard::S))(*playerY)++;//reversed
+    //if (sf::Keyboard::isKeyPressed(sf::Keyboard::W)) 
 
     if (*playerR >= 360)*playerR = 0;
     else if (*playerR < 0)*playerR = 359;
@@ -302,8 +302,9 @@ int main(){
     //main game loop!!!
 
     while (window.isOpen() && mapWindow.isOpen()){
-        sf::Event event;
 
+        //wnidow close check
+        sf::Event event;
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape)) window.close();
         while (window.pollEvent(event)){
             if (event.type == sf::Event::Closed)
@@ -326,12 +327,13 @@ int main(){
 
         std::cout << elps.count() << "\n";
 
+        //rendering walls
         generateDistanceMap(0, screenWidth, distanceMap, wallsTab, addWallInfo, wallCount, playerPosX, playerPosY, playerRotation);
         imageFromDistacneMap(&buffer, distanceMap, 1, sf::Color::White);
 
 
 
-        
+        //generating map
         makeMap(&mapBuffer, wallsTab, wallCount, playerPosX, playerPosY, playerRotation);
 
 
