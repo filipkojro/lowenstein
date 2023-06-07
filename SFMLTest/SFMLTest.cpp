@@ -158,6 +158,50 @@ void generateDistanceMap(int thID, int thSize, float* distanceMap, float* wallsT
     }
 }
 
+void generateDistanceMap2(float* distanceMap, float* wallsTab, int wallCount, float sourceX, float sourceY, float sourceRotation) {
+    float renderDistance = 500;
+
+    for (int sx = 0; sx < screenWidth; sx++) {
+
+        float beta = sourceRotation + (FOV / 2) - float((float(sx * FOV)) / screenWidth);//to psulo dokladnosc :(
+        float betaR;
+
+        betaR = beta * PI / 180;
+
+        float endOfRenderX = cos(betaR) * renderDistance + sourceX;//sin or cos idk???
+        float endOfRenderY = sin(betaR) * renderDistance + sourceY;
+
+        distanceMap[sx] = INFINITY;
+
+        for (int curWall = 0; curWall < wallCount; curWall++) {
+
+            float x3 = wallsTab[curWall * 4];
+            float y3 = wallsTab[curWall * 4 + 1];
+            float x4 = wallsTab[curWall * 4 + 2];
+            float y4 = wallsTab[curWall * 4 + 3];
+
+            //https://jeffreythompson.org/collision-detection/line-line.php <3
+
+            float uA = ((x4 - x3) * (sourceY - y3) - (y4 - y3) * (sourceX - x3))
+                    / ((y4 - y3) * (endOfRenderX - sourceX) - (x4 - x3) * (endOfRenderY - sourceY));
+
+            float uB = ((endOfRenderX - sourceX) * (sourceY - y3) - (endOfRenderY - sourceY) * (sourceX - x3))
+                    / ((y4 - y3) * (endOfRenderX - sourceX) - (x4 - x3) * (endOfRenderY - sourceY));
+
+            if (uA < 0 || uA > 1 || uB < 0 || uB > 1) {
+                continue;
+            }
+
+            float collisionX = sourceX + (uA * (endOfRenderX - sourceX));
+            float collisionY = sourceY + (uA * (endOfRenderY - sourceY));
+
+            float distance = pow(sourceX - collisionX, 2) + pow(sourceY - collisionY, 2);
+
+            if (distance < distanceMap[sx]) distanceMap[sx] = distance;
+        }
+    }
+}
+
 void generateAddWallInfo(int wallCount, float* wallsTab, float* addWallInfo) {
 
     int ac = 0;
@@ -225,10 +269,10 @@ void playerMovement(float* playerX, float* playerY, float* playerR, double lastT
     float moveR = 0;
 
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Q) && sf::Keyboard::isKeyPressed(sf::Keyboard::W))(*playerR)--;
-    //if (sf::Keyboard::isKeyPressed(sf::Keyboard::E))(*playerR)++;
-    //if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))(*playerX)--;
-    //if (sf::Keyboard::isKeyPressed(sf::Keyboard::D))(*playerX)++;
-    //if (sf::Keyboard::isKeyPressed(sf::Keyboard::S))(*playerY)++;//reversed
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::E))(*playerR)++;
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))(*playerX)--;
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::D))(*playerX)++;
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::S))(*playerY)++;//reversed
     //if (sf::Keyboard::isKeyPressed(sf::Keyboard::W)) 
 
     if (*playerR >= 360)*playerR = 0;
@@ -295,8 +339,8 @@ int main(){
 
     float distanceMap[screenWidth];
 
-    generateDistanceMap(0, screenWidth, distanceMap, wallsTab, addWallInfo, wallCount, playerPosX, playerPosY, playerRotation);
-
+    //generateDistanceMap(0, screenWidth, distanceMap, wallsTab, addWallInfo, wallCount, playerPosX, playerPosY, playerRotation);
+    generateDistanceMap2(distanceMap, wallsTab, wallCount, playerPosX, playerPosY, playerRotation);
 
 
     //main game loop!!!
@@ -328,7 +372,9 @@ int main(){
         std::cout << elps.count() << "\n";
 
         //rendering walls
-        generateDistanceMap(0, screenWidth, distanceMap, wallsTab, addWallInfo, wallCount, playerPosX, playerPosY, playerRotation);
+        //generateDistanceMap(0, screenWidth, distanceMap, wallsTab, addWallInfo, wallCount, playerPosX, playerPosY, playerRotation);
+        generateDistanceMap2(distanceMap, wallsTab, wallCount, playerPosX, playerPosY, playerRotation);
+        
         imageFromDistacneMap(&buffer, distanceMap, 1, sf::Color::White);
 
 
